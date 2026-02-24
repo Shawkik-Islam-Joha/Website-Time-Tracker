@@ -1,6 +1,7 @@
 # ⏳ Website Time Tracker (Microsoft Edge Extension)
 
 A lightweight Microsoft Edge extension that tracks how much time you spend on different websites every day.
+
 Note: It'll work on any chromium based browser.
 
 ---
