@@ -1,0 +1,23 @@
+body {
+    font-family: Arial, sans-serif;
+    width: 300px;
+    padding: 10px;
+}
+
+h2 {
+    text-align: center;
+}
+
+#totalTime {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    margin-bottom: 5px;
+}
