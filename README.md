@@ -15,7 +15,7 @@ A lightweight Microsoft Edge extension that tracks how much time you spend on di
 ---
 
 ## 📂 Project Structure
-
+```
 Website-Time-Tracker/
 │
 ├── manifest.json # Extension configuration
@@ -33,7 +33,7 @@ Website-Time-Tracker/
 ├── README.md
 ├── LICENSE
 └── .gitignore
-
+```
 
 ---
 
