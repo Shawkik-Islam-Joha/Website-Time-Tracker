@@ -39,11 +39,12 @@ Website-Time-Tracker/
 
 ## 🛠 Installation (Developer Mode)
 
-1. Open Microsoft Edge
-2. Go to: `edge://extensions/`
-3. Enable **Developer Mode**
-4. Click **Load unpacked**
-5. Select the project folder
+1. Download ZIP from GitHub repo → Code → Download ZIP  
+2. Extract ZIP to a folder
+3. Open Extensions page 
+4. Turn ON **Developer mode** (top-right toggle)  
+5. Click **Load unpacked** → select the folder with manifest.json  
+6. Done – extension is now loaded (reload icon to update later)
 
 ---
 
