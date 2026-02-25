@@ -1,18 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Website Time Tracker</title>
     <link rel="stylesheet" href="popup.css">
 </head>
 <body>
+    <main class="app-shell">
+        <header class="app-header">
+            <h1>Website Time Tracker</h1>
+            <p class="subtitle">Material-style daily insights</p>
+        </header>
 
-    <h2>Today's Usage</h2>
+        <section class="card" aria-labelledby="todayHeading">
+            <h2 id="todayHeading">Today's Usage</h2>
+            <div id="totalTime" class="metric-value"></div>
+            <ul id="siteList" class="list"></ul>
+        </section>
 
-    <div id="totalTime"></div>
-
-    <ul id="siteList"></ul>
-
-    <button id="resetBtn">Reset Today</button>
+        <section class="card" aria-labelledby="historyHeading">
+            <h2 id="historyHeading">Statistics</h2>
+            <p class="section-hint">Usage history from previous dates</p>
+            <ul id="historyList" class="history-list"></ul>
+        </section>
+    </main>
 
     <script src="popup.js"></script>
 </body>
