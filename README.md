@@ -8,13 +8,16 @@ Note: It'll work on any chromium based browser.
 
 ## 🚀 Features
 
-- ⌛ Tracks time spent per website
-- 📊 Shows total time spent today
-- 📈 Displays percentage usage per site
-- 🔄 Automatically runs in the background
-- 🎯 Material-inspired popup interface (Android 12 style)
-- 🗂️ Statistics section with usage history for previous dates
-
+- Tracks active tab time accurately.
+- Stops counting time when the browser window is minimized.
+- Provides a toggleable statistics panel (hidden by default).
+- Displays per-site daily usage in clean list format.
+- Allows left/right navigation to browse last 7 days.
+- Shows a 7-day total usage comparison bar chart.
+- Maintains a rolling 7-day usage history.
+- Includes reset button for clearing today’s data.
+- Formats total daily time clearly and consistently.
+- Clean, interactive and responsive popup UI.
 ---
 
 ## 📂 Project Structure
@@ -60,12 +63,14 @@ Website-Time-Tracker/
 
 ---
 
-## 📊 Data Structure Example
+## 📷 Screenshots
 
-```json
-{
-  "2026-02-25": {
-    "youtube.com": 3600,
-    "github.com": 1800
-  }
-}
+### Main View
+<img width="427" height="668" alt="image" src="https://github.com/user-attachments/assets/4eec377d-9a47-4f51-93d6-0473f9237dfb" />
+
+### Statistics Panel
+<img width="449" height="606" alt="image" src="https://github.com/user-attachments/assets/1e51be31-99ca-4cce-99a3-16ceeed0389d" />
+
+### 7-Day Chart
+<img width="431" height="269" alt="image" src="https://github.com/user-attachments/assets/9a075439-6844-47ac-bfd4-f833f37691c2" />
+
