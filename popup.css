@@ -1,43 +1,96 @@
+:root {
+    --md-sys-color-surface: #fdf8fd;
+    --md-sys-color-surface-container: #f2ebf3;
+    --md-sys-color-primary: #6750a4;
+    --md-sys-color-on-primary: #ffffff;
+    --md-sys-color-secondary: #625b71;
+    --md-sys-color-on-surface: #1d1b20;
+    --md-sys-color-outline: #cac4d0;
+    --md-sys-color-shadow: rgba(29, 27, 32, 0.14);
+}
+
+* {
+    box-sizing: border-box;
+}
+
 body {
-    font-family: Arial, sans-serif;
-    width: 320px;
-    padding: 10px;
+    margin: 0;
+    width: 360px;
+    font-family: "Roboto", "Segoe UI", Arial, sans-serif;
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-on-surface);
 }
 
-h2 {
-    text-align: center;
+.app-shell {
+    padding: 16px;
+    display: grid;
+    gap: 12px;
 }
 
-#totalTime {
-    font-weight: bold;
-    margin-bottom: 10px;
-    text-align: center;
+.app-header h1 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 500;
+    letter-spacing: 0.015em;
 }
 
-ul {
+.subtitle {
+    margin: 4px 0 0;
+    color: var(--md-sys-color-secondary);
+    font-size: 0.8rem;
+}
+
+.card {
+    background: var(--md-sys-color-surface-container);
+    border-radius: 20px;
+    padding: 14px;
+    box-shadow: 0 1px 2px var(--md-sys-color-shadow);
+}
+
+.card h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.metric-value {
+    margin-top: 8px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--md-sys-color-primary);
+}
+
+.list,
+.history-list {
     list-style: none;
     padding: 0;
+    margin: 10px 0 0;
+    display: grid;
+    gap: 8px;
 }
 
-li {
-    margin-bottom: 8px;
-    padding: 5px;
-    background: #f2f2f2;
-    border-radius: 5px;
-    font-size: 13px;
+.list li,
+.history-list li {
+    background: #fff;
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: 14px;
+    padding: 10px;
+    font-size: 0.8rem;
+    line-height: 1.4;
 }
 
-button {
-    width: 100%;
-    padding: 8px;
-    margin-top: 10px;
-    border: none;
-    background-color: #0078D7;
-    color: white;
-    border-radius: 5px;
-    cursor: pointer;
+.site-title,
+.history-date {
+    display: block;
+    font-size: 0.84rem;
+    font-weight: 500;
+    margin-bottom: 2px;
 }
 
-button:hover {
-    background-color: #005fa3;
+.section-hint,
+.empty-state,
+.history-meta {
+    margin: 8px 0 0;
+    color: var(--md-sys-color-secondary);
+    font-size: 0.75rem;
 }

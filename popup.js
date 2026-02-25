@@ -1,62 +1,86 @@
 function formatTime(seconds) {
-    let hrs = Math.floor(seconds / 3600);
-    let mins = Math.floor((seconds % 3600) / 60);
-    let secs = seconds % 60;
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
 
     return `${hrs}h ${mins}m ${secs}s`;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function isDateKey(value) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
 
-    let today = new Date().toISOString().split("T")[0];
+function getTopSites(data, limit = 3) {
+    return Object.entries(data)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, limit);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const today = new Date().toISOString().split("T")[0];
 
     const totalTimeDiv = document.getElementById("totalTime");
     const siteList = document.getElementById("siteList");
-    const resetBtn = document.getElementById("resetBtn");
+    const historyList = document.getElementById("historyList");
 
-    function loadData() {
+    function loadTodayUsage(storageData) {
+        const data = storageData[today] || {};
+        const total = Object.values(data).reduce((sum, seconds) => sum + seconds, 0);
 
-        chrome.storage.local.get([today], (result) => {
+        totalTimeDiv.textContent = `Total Today: ${formatTime(total)}`;
+        siteList.innerHTML = "";
 
-            let data = result[today] || {};
-            let total = 0;
+        if (!Object.keys(data).length) {
+            siteList.innerHTML = '<li class="empty-state">No tracked activity yet for today.</li>';
+            return;
+        }
 
-            // Calculate total time
-            for (let site in data) {
-                total += data[site];
-            }
+        for (const [site, seconds] of Object.entries(data).sort((a, b) => b[1] - a[1])) {
+            const percentage = total > 0 ? ((seconds / total) * 100).toFixed(1) : 0;
+            const li = document.createElement("li");
 
-            totalTimeDiv.textContent = "Total Today: " + formatTime(total);
+            li.innerHTML = `
+                <span class="site-title">${site}</span>
+                Time: ${formatTime(seconds)}<br>
+                Usage: ${percentage}%
+            `;
 
-            siteList.innerHTML = "";
-
-            // Display each site with percentage
-            for (let site in data) {
-
-                let seconds = data[site];
-                let percentage = total > 0
-                    ? ((seconds / total) * 100).toFixed(1)
-                    : 0;
-
-                let li = document.createElement("li");
-
-                li.innerHTML = `
-                    <strong>${site}</strong><br>
-                    Time: ${formatTime(seconds)}<br>
-                    Usage: ${percentage}%
-                `;
-
-                siteList.appendChild(li);
-            }
-        });
+            siteList.appendChild(li);
+        }
     }
 
-    // Reset button logic
-    resetBtn.addEventListener("click", () => {
-        chrome.storage.local.remove(today, () => {
-            loadData();
-        });
-    });
+    function loadHistory(storageData) {
+        const historicalDates = Object.keys(storageData)
+            .filter((key) => isDateKey(key) && key !== today)
+            .sort((a, b) => b.localeCompare(a));
 
-    loadData();
+        historyList.innerHTML = "";
+
+        if (!historicalDates.length) {
+            historyList.innerHTML = '<li class="empty-state">No previous usage history available yet.</li>';
+            return;
+        }
+
+        for (const date of historicalDates) {
+            const dayData = storageData[date] || {};
+            const total = Object.values(dayData).reduce((sum, seconds) => sum + seconds, 0);
+            const topSites = getTopSites(dayData)
+                .map(([site, seconds]) => `${site} (${formatTime(seconds)})`)
+                .join(" • ");
+
+            const li = document.createElement("li");
+            li.innerHTML = `
+                <span class="history-date">${date}</span>
+                <span class="history-meta">Total: ${formatTime(total)}</span>
+                <div>${topSites || "No website details"}</div>
+            `;
+
+            historyList.appendChild(li);
+        }
+    }
+
+    chrome.storage.local.get(null, (storageData) => {
+        loadTodayUsage(storageData);
+        loadHistory(storageData);
+    });
 });

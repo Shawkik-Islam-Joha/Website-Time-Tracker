@@ -12,7 +12,8 @@ Note: It'll work on any chromium based browser.
 - 📊 Shows total time spent today
 - 📈 Displays percentage usage per site
 - 🔄 Automatically runs in the background
-- 🎯 Simple and clean popup interface
+- 🎯 Material-inspired popup interface (Android 12 style)
+- 🗂️ Statistics section with usage history for previous dates
 
 ---
 
