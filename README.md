@@ -66,11 +66,12 @@ Website-Time-Tracker/
 ## 📷 Screenshots
 
 ### Main View
-<img width="427" height="668" alt="image" src="https://github.com/user-attachments/assets/4eec377d-9a47-4f51-93d6-0473f9237dfb" />
+<img width="446" height="698" alt="image" src="https://github.com/user-attachments/assets/b8cbd8e5-954f-4a02-a8b9-d09ce36c3950" />
 
 ### Statistics Panel
-<img width="449" height="606" alt="image" src="https://github.com/user-attachments/assets/1e51be31-99ca-4cce-99a3-16ceeed0389d" />
+<img width="449" height="695" alt="image" src="https://github.com/user-attachments/assets/9719f06a-5fb4-4726-99c9-0e6234e7404e" />
 
 ### 7-Day Chart
-<img width="431" height="269" alt="image" src="https://github.com/user-attachments/assets/9a075439-6844-47ac-bfd4-f833f37691c2" />
+<img width="445" height="690" alt="image" src="https://github.com/user-attachments/assets/9dc81405-427b-42f5-a000-dfe769adfa82" />
+
 
