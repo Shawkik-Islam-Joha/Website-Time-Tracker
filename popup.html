@@ -12,16 +12,16 @@
             <p class="subtitle">Daily insights of your website usage</p>
         </header>
 
-        <section class="card" aria-labelledby="todayHeading">
+        <section id="dailyView" class="card view" aria-labelledby="todayHeading">
             <h2 id="todayHeading">Today's Usage</h2>
             <div id="totalTime" class="metric-value"></div>
             <ul id="siteList" class="list"></ul>
-            <button id="statsToggle" class="stats-toggle" type="button" aria-expanded="false">
-                Show Statistics
-            </button>
+            <div class="fixed-actions">
+                <button id="showStats" class="stats-toggle" type="button">Show Statistics</button>
+            </div>
         </section>
 
-        <section id="statsSection" class="card stats-card hidden" aria-labelledby="historyHeading">
+        <section id="statsView" class="card view hidden" aria-labelledby="historyHeading">
             <h2 id="historyHeading">Statistics (7 Days)</h2>
             <div class="history-nav" role="group" aria-label="Navigate history dates">
                 <button id="prevDay" type="button" aria-label="Previous day">◀</button>
@@ -30,8 +30,20 @@
             </div>
             <p id="historyTotal" class="section-hint"></p>
             <ul id="historySiteList" class="history-list"></ul>
+            <div class="fixed-actions">
+                <button id="toDailyFromStats" class="secondary-button" type="button">Daily Usage</button>
+                <button id="toChart" class="stats-toggle" type="button">Show Chart</button>
+            </div>
+        </section>
+
+        <section id="chartView" class="card view hidden" aria-labelledby="chartHeading">
+            <h2 id="chartHeading">Usage Chart (7 Days)</h2>
             <h3 class="chart-title">Total Usage Comparison</h3>
-            <canvas id="usageChart" width="320" height="160" aria-label="7 day total usage chart"></canvas>
+            <canvas id="usageChart" width="320" height="180" aria-label="7 day total usage chart"></canvas>
+            <div class="fixed-actions">
+                <button id="toStatsFromChart" class="secondary-button" type="button">Statistics</button>
+                <button id="toDailyFromChart" class="stats-toggle" type="button">Daily Usage</button>
+            </div>
         </section>
     </main>
 

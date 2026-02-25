@@ -1,4 +1,5 @@
 const SESSION_STATE_KEY = "__sessionState";
+const FAVICON_CACHE_KEY = "__faviconCache";
 
 function formatTime(seconds) {
     const hrs = Math.floor(seconds / 3600);
@@ -33,7 +34,9 @@ function getDailyTotal(dayData) {
 
 function cloneStorageData(storageData) {
     return Object.fromEntries(
-        Object.entries(storageData).map(([date, dayData]) => [date, { ...(dayData || {}) }])
+        Object.entries(storageData)
+            .filter(([key]) => /^\d{4}-\d{2}-\d{2}$/.test(key))
+            .map(([date, dayData]) => [date, { ...(dayData || {}) }])
     );
 }
 
@@ -50,6 +53,10 @@ function getTrackableDomain(url) {
     } catch (e) {
         return null;
     }
+}
+
+function getDefaultFaviconUrl(domain) {
+    return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(domain)}`;
 }
 
 function drawUsageChart(canvas, statsByDate, dates) {
@@ -84,10 +91,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const today = new Date().toISOString().split("T")[0];
     const recentDates = getRecentDates(7);
 
+    const dailyView = document.getElementById("dailyView");
+    const statsView = document.getElementById("statsView");
+    const chartView = document.getElementById("chartView");
+
     const totalTimeDiv = document.getElementById("totalTime");
     const siteList = document.getElementById("siteList");
-    const statsToggle = document.getElementById("statsToggle");
-    const statsSection = document.getElementById("statsSection");
     const historyDateLabel = document.getElementById("historyDateLabel");
     const historyTotal = document.getElementById("historyTotal");
     const historySiteList = document.getElementById("historySiteList");
@@ -95,10 +104,54 @@ document.addEventListener("DOMContentLoaded", () => {
     const nextDayButton = document.getElementById("nextDay");
     const usageChart = document.getElementById("usageChart");
 
+    const showStatsButton = document.getElementById("showStats");
+    const toDailyFromStats = document.getElementById("toDailyFromStats");
+    const toChartButton = document.getElementById("toChart");
+    const toStatsFromChart = document.getElementById("toStatsFromChart");
+    const toDailyFromChart = document.getElementById("toDailyFromChart");
+
     let currentDateIndex = recentDates.length - 1;
     let storageData = {};
     let liveData = {};
+    let faviconCache = {};
     let refreshIntervalId = null;
+
+    function showView(viewName) {
+        dailyView.classList.toggle("hidden", viewName !== "daily");
+        statsView.classList.toggle("hidden", viewName !== "stats");
+        chartView.classList.toggle("hidden", viewName !== "chart");
+
+        if (viewName === "stats") {
+            renderHistoryDay();
+        }
+
+        if (viewName === "chart") {
+            drawUsageChart(usageChart, liveData, recentDates);
+        }
+    }
+
+    function getFavicon(site) {
+        return faviconCache[site] || getDefaultFaviconUrl(site);
+    }
+
+    function createSiteItem(site, seconds, totalSeconds) {
+        const percentage = totalSeconds > 0 ? ((seconds / totalSeconds) * 100).toFixed(1) : 0;
+        const li = document.createElement("li");
+        li.className = "site-row";
+
+        li.innerHTML = `
+            <div class="site-meta">
+                <div class="site-headline">
+                    <img class="site-icon" src="${getFavicon(site)}" alt="${site} icon" referrerpolicy="no-referrer">
+                    <span class="site-title">${site}</span>
+                </div>
+                <span>Usage: ${percentage}%</span>
+            </div>
+            <span class="site-time">${formatTime(seconds)}</span>
+        `;
+
+        return li;
+    }
 
     function renderTodayUsage() {
         const data = liveData[today] || {};
@@ -113,16 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         for (const [site, seconds] of Object.entries(data).sort((a, b) => b[1] - a[1])) {
-            const percentage = total > 0 ? ((seconds / total) * 100).toFixed(1) : 0;
-            const li = document.createElement("li");
-
-            li.innerHTML = `
-                <span class="site-title">${site}</span>
-                Time: ${formatTime(seconds)}<br>
-                Usage: ${percentage}%
-            `;
-
-            siteList.appendChild(li);
+            siteList.appendChild(createSiteItem(site, seconds, total));
         }
     }
 
@@ -148,21 +192,15 @@ document.addEventListener("DOMContentLoaded", () => {
         entries.forEach(([site, seconds]) => {
             const li = document.createElement("li");
             li.className = "history-site-row";
-            li.innerHTML = `<span>${site}</span><span>${formatTime(seconds)}</span>`;
+            li.innerHTML = `
+                <div class="site-headline">
+                    <img class="site-icon" src="${getFavicon(site)}" alt="${site} icon" referrerpolicy="no-referrer">
+                    <span class="site-title">${site}</span>
+                </div>
+                <span>${formatTime(seconds)}</span>
+            `;
             historySiteList.appendChild(li);
         });
-    }
-
-    function renderStatistics() {
-        renderHistoryDay();
-        drawUsageChart(usageChart, liveData, recentDates);
-    }
-
-    function renderAll() {
-        renderTodayUsage();
-        if (!statsSection.classList.contains("hidden")) {
-            renderStatistics();
-        }
     }
 
     function applyLiveSessionTime(callback = () => {}) {
@@ -200,22 +238,64 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function refreshLiveView() {
-        chrome.storage.local.get(null, (data) => {
-            storageData = data || {};
-            applyLiveSessionTime(renderAll);
+    function updateFaviconCache(done = () => {}) {
+        chrome.tabs.query({}, (tabs) => {
+            const updatedCache = { ...faviconCache };
+
+            (tabs || []).forEach((tab) => {
+                const domain = tab.url ? getTrackableDomain(tab.url) : null;
+                if (!domain) {
+                    return;
+                }
+
+                if (tab.favIconUrl) {
+                    updatedCache[domain] = tab.favIconUrl;
+                } else if (!updatedCache[domain]) {
+                    updatedCache[domain] = getDefaultFaviconUrl(domain);
+                }
+            });
+
+            faviconCache = updatedCache;
+            chrome.storage.local.set({ [FAVICON_CACHE_KEY]: faviconCache }, done);
         });
     }
 
-    statsToggle.addEventListener("click", () => {
-        const shouldShow = statsSection.classList.contains("hidden");
-        statsSection.classList.toggle("hidden", !shouldShow);
-        statsToggle.textContent = shouldShow ? "Hide Statistics" : "Show Statistics";
-        statsToggle.setAttribute("aria-expanded", shouldShow ? "true" : "false");
+    function refreshLiveView() {
+        chrome.storage.local.get(null, (data) => {
+            storageData = data || {};
+            faviconCache = storageData[FAVICON_CACHE_KEY] || {};
+            updateFaviconCache(() => {
+                applyLiveSessionTime(() => {
+                    renderTodayUsage();
+                    if (!statsView.classList.contains("hidden")) {
+                        renderHistoryDay();
+                    }
+                    if (!chartView.classList.contains("hidden")) {
+                        drawUsageChart(usageChart, liveData, recentDates);
+                    }
+                });
+            });
+        });
+    }
 
-        if (shouldShow) {
-            renderStatistics();
-        }
+    showStatsButton.addEventListener("click", () => {
+        showView("stats");
+    });
+
+    toDailyFromStats.addEventListener("click", () => {
+        showView("daily");
+    });
+
+    toChartButton.addEventListener("click", () => {
+        showView("chart");
+    });
+
+    toStatsFromChart.addEventListener("click", () => {
+        showView("stats");
+    });
+
+    toDailyFromChart.addEventListener("click", () => {
+        showView("daily");
     });
 
     prevDayButton.addEventListener("click", () => {
