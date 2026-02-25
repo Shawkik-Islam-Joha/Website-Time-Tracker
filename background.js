@@ -1,41 +1,107 @@
-let activeTabDomain = null;
+const SESSION_STATE_KEY = "__sessionState";
+const TRACK_ALARM_NAME = "trackActiveTabTime";
 
-// Get domain from URL
-function getDomain(url) {
+function getTodayKey() {
+    return new Date().toISOString().split("T")[0];
+}
+
+// Track only normal web pages and ignore browser/extension pages (including New Tab pages).
+function getTrackableDomain(url) {
     try {
-        let urlObject = new URL(url);
+        const urlObject = new URL(url);
+        const isWebPage = urlObject.protocol === "http:" || urlObject.protocol === "https:";
+
+        if (!isWebPage || !urlObject.hostname) {
+            return null;
+        }
+
         return urlObject.hostname;
     } catch (e) {
         return null;
     }
 }
 
-// Check active tab every second
-setInterval(() => {
+function getCurrentActiveDomain(callback) {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs.length === 0) return;
+        if (!tabs || tabs.length === 0 || !tabs[0].url) {
+            callback(null);
+            return;
+        }
 
-        let tab = tabs[0];
-        if (!tab.url) return;
+        callback(getTrackableDomain(tabs[0].url));
+    });
+}
 
-        let domain = getDomain(tab.url);
-        if (!domain) return;
+function addElapsedTimeToStorage(domain, elapsedSeconds, callback) {
+    if (!domain || elapsedSeconds <= 0) {
+        callback();
+        return;
+    }
 
-        activeTabDomain = domain;
+    const today = getTodayKey();
 
-        // Get today's date
-        let today = new Date().toISOString().split("T")[0];
+    chrome.storage.local.get([today], (result) => {
+        const data = result[today] || {};
+        data[domain] = (data[domain] || 0) + elapsedSeconds;
 
-        chrome.storage.local.get([today], (result) => {
-            let data = result[today] || {};
+        chrome.storage.local.set({ [today]: data }, callback);
+    });
+}
 
-            if (!data[domain]) {
-                data[domain] = 0;
-            }
+function saveSessionState(state, callback = () => {}) {
+    chrome.storage.local.set({ [SESSION_STATE_KEY]: state }, callback);
+}
 
-            data[domain] += 1;
+function trackActiveTabTime() {
+    getCurrentActiveDomain((currentDomain) => {
+        const now = Date.now();
 
-            chrome.storage.local.set({ [today]: data });
+        chrome.storage.local.get([SESSION_STATE_KEY], (result) => {
+            const sessionState = result[SESSION_STATE_KEY] || {};
+            const lastDomain = sessionState.lastDomain || null;
+            const lastTimestamp = sessionState.lastTimestamp || now;
+            const elapsedSeconds = Math.floor((now - lastTimestamp) / 1000);
+
+            addElapsedTimeToStorage(lastDomain, elapsedSeconds, () => {
+                saveSessionState({
+                    lastDomain: currentDomain,
+                    lastTimestamp: now
+                });
+            });
         });
     });
-}, 1000);
+}
+
+function ensureTrackingAlarm() {
+    chrome.alarms.create(TRACK_ALARM_NAME, { periodInMinutes: 1 });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+    ensureTrackingAlarm();
+    trackActiveTabTime();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    ensureTrackingAlarm();
+    trackActiveTabTime();
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === TRACK_ALARM_NAME) {
+        trackActiveTabTime();
+    }
+});
+
+chrome.tabs.onActivated.addListener(() => {
+    trackActiveTabTime();
+});
+
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+    if (changeInfo.status === "complete" || changeInfo.url) {
+        trackActiveTabTime();
+    }
+});
+
+chrome.windows.onFocusChanged.addListener(() => {
+    trackActiveTabTime();
+});
