@@ -6,26 +6,78 @@ function formatTime(seconds) {
     return `${hrs}h ${mins}m ${secs}s`;
 }
 
-function isDateKey(value) {
-    return /^\d{4}-\d{2}-\d{2}$/.test(value);
+function formatShortDate(dateKey) {
+    const [year, month, day] = dateKey.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function getTopSites(data, limit = 3) {
-    return Object.entries(data)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, limit);
+function getRecentDates(limit = 7) {
+    const dates = [];
+    const now = new Date();
+
+    for (let i = limit - 1; i >= 0; i -= 1) {
+        const date = new Date(now);
+        date.setDate(now.getDate() - i);
+        dates.push(date.toISOString().split("T")[0]);
+    }
+
+    return dates;
+}
+
+function getDailyTotal(dayData) {
+    return Object.values(dayData || {}).reduce((sum, seconds) => sum + seconds, 0);
+}
+
+function drawUsageChart(canvas, statsByDate, dates) {
+    const context = canvas.getContext("2d");
+    const width = canvas.width;
+    const height = canvas.height;
+
+    context.clearRect(0, 0, width, height);
+
+    const totals = dates.map((date) => getDailyTotal(statsByDate[date]));
+    const maxValue = Math.max(...totals, 1);
+    const padding = 18;
+    const chartHeight = height - padding * 2 - 14;
+    const barWidth = (width - padding * 2) / dates.length - 6;
+
+    totals.forEach((value, index) => {
+        const barHeight = Math.round((value / maxValue) * chartHeight);
+        const x = padding + index * (barWidth + 6);
+        const y = height - padding - barHeight - 10;
+
+        context.fillStyle = "#6750a4";
+        context.fillRect(x, y, barWidth, barHeight);
+
+        context.fillStyle = "#625b71";
+        context.font = "10px Segoe UI";
+        context.textAlign = "center";
+        context.fillText(formatShortDate(dates[index]).replace(" ", "/"), x + barWidth / 2, height - 4);
+    });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
     const today = new Date().toISOString().split("T")[0];
+    const recentDates = getRecentDates(7);
 
     const totalTimeDiv = document.getElementById("totalTime");
     const siteList = document.getElementById("siteList");
-    const historyList = document.getElementById("historyList");
+    const statsToggle = document.getElementById("statsToggle");
+    const statsSection = document.getElementById("statsSection");
+    const historyDateLabel = document.getElementById("historyDateLabel");
+    const historyTotal = document.getElementById("historyTotal");
+    const historySiteList = document.getElementById("historySiteList");
+    const prevDayButton = document.getElementById("prevDay");
+    const nextDayButton = document.getElementById("nextDay");
+    const usageChart = document.getElementById("usageChart");
 
-    function loadTodayUsage(storageData) {
+    let currentDateIndex = recentDates.length - 1;
+    let storageData = {};
+
+    function renderTodayUsage() {
         const data = storageData[today] || {};
-        const total = Object.values(data).reduce((sum, seconds) => sum + seconds, 0);
+        const total = getDailyTotal(data);
 
         totalTimeDiv.textContent = `Total Today: ${formatTime(total)}`;
         siteList.innerHTML = "";
@@ -49,38 +101,65 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function loadHistory(storageData) {
-        const historicalDates = Object.keys(storageData)
-            .filter((key) => isDateKey(key) && key !== today)
-            .sort((a, b) => b.localeCompare(a));
+    function renderHistoryDay() {
+        const selectedDate = recentDates[currentDateIndex];
+        const dayData = storageData[selectedDate] || {};
+        const total = getDailyTotal(dayData);
 
-        historyList.innerHTML = "";
+        historyDateLabel.textContent = selectedDate;
+        historyTotal.textContent = `Total: ${formatTime(total)} (${formatShortDate(selectedDate)})`;
+        prevDayButton.disabled = currentDateIndex <= 0;
+        nextDayButton.disabled = currentDateIndex >= recentDates.length - 1;
 
-        if (!historicalDates.length) {
-            historyList.innerHTML = '<li class="empty-state">No previous usage history available yet.</li>';
+        historySiteList.innerHTML = "";
+
+        const entries = Object.entries(dayData).sort((a, b) => b[1] - a[1]);
+
+        if (!entries.length) {
+            historySiteList.innerHTML = '<li class="empty-state">No website usage recorded for this day.</li>';
             return;
         }
 
-        for (const date of historicalDates) {
-            const dayData = storageData[date] || {};
-            const total = Object.values(dayData).reduce((sum, seconds) => sum + seconds, 0);
-            const topSites = getTopSites(dayData)
-                .map(([site, seconds]) => `${site} (${formatTime(seconds)})`)
-                .join(" • ");
-
+        entries.forEach(([site, seconds]) => {
             const li = document.createElement("li");
-            li.innerHTML = `
-                <span class="history-date">${date}</span>
-                <span class="history-meta">Total: ${formatTime(total)}</span>
-                <div>${topSites || "No website details"}</div>
-            `;
-
-            historyList.appendChild(li);
-        }
+            li.className = "history-site-row";
+            li.innerHTML = `<span>${site}</span><span>${formatTime(seconds)}</span>`;
+            historySiteList.appendChild(li);
+        });
     }
 
-    chrome.storage.local.get(null, (storageData) => {
-        loadTodayUsage(storageData);
-        loadHistory(storageData);
+    function renderStatistics() {
+        renderHistoryDay();
+        drawUsageChart(usageChart, storageData, recentDates);
+    }
+
+    statsToggle.addEventListener("click", () => {
+        const shouldShow = statsSection.classList.contains("hidden");
+        statsSection.classList.toggle("hidden", !shouldShow);
+        statsToggle.textContent = shouldShow ? "Hide Statistics" : "Show Statistics";
+        statsToggle.setAttribute("aria-expanded", shouldShow ? "true" : "false");
+
+        if (shouldShow) {
+            renderStatistics();
+        }
+    });
+
+    prevDayButton.addEventListener("click", () => {
+        if (currentDateIndex > 0) {
+            currentDateIndex -= 1;
+            renderHistoryDay();
+        }
+    });
+
+    nextDayButton.addEventListener("click", () => {
+        if (currentDateIndex < recentDates.length - 1) {
+            currentDateIndex += 1;
+            renderHistoryDay();
+        }
+    });
+
+    chrome.storage.local.get(null, (data) => {
+        storageData = data || {};
+        renderTodayUsage();
     });
 });

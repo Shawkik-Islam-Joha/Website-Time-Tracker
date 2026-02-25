@@ -16,12 +16,22 @@
             <h2 id="todayHeading">Today's Usage</h2>
             <div id="totalTime" class="metric-value"></div>
             <ul id="siteList" class="list"></ul>
+            <button id="statsToggle" class="stats-toggle" type="button" aria-expanded="false">
+                Show Statistics
+            </button>
         </section>
 
-        <section class="card" aria-labelledby="historyHeading">
-            <h2 id="historyHeading">Statistics</h2>
-            <p class="section-hint">Usage history from previous dates</p>
-            <ul id="historyList" class="history-list"></ul>
+        <section id="statsSection" class="card stats-card hidden" aria-labelledby="historyHeading">
+            <h2 id="historyHeading">Statistics (7 Days)</h2>
+            <div class="history-nav" role="group" aria-label="Navigate history dates">
+                <button id="prevDay" type="button" aria-label="Previous day">◀</button>
+                <span id="historyDateLabel" class="history-date-label"></span>
+                <button id="nextDay" type="button" aria-label="Next day">▶</button>
+            </div>
+            <p id="historyTotal" class="section-hint"></p>
+            <ul id="historySiteList" class="history-list"></ul>
+            <h3 class="chart-title">Total Usage Comparison</h3>
+            <canvas id="usageChart" width="320" height="160" aria-label="7 day total usage chart"></canvas>
         </section>
     </main>
 

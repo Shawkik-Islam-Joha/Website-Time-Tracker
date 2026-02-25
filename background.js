@@ -21,6 +21,17 @@ function getTrackableDomain(url) {
     }
 }
 
+function isTrackingAllowed(callback) {
+    chrome.windows.getLastFocused({}, (windowInfo) => {
+        if (chrome.runtime.lastError || !windowInfo) {
+            callback(false);
+            return;
+        }
+
+        callback(windowInfo.state !== "minimized");
+    });
+}
+
 function getCurrentActiveDomain(callback) {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs || tabs.length === 0 || !tabs[0].url) {
@@ -53,19 +64,31 @@ function saveSessionState(state, callback = () => {}) {
 }
 
 function trackActiveTabTime() {
-    getCurrentActiveDomain((currentDomain) => {
-        const now = Date.now();
+    const now = Date.now();
 
+    isTrackingAllowed((allowed) => {
         chrome.storage.local.get([SESSION_STATE_KEY], (result) => {
             const sessionState = result[SESSION_STATE_KEY] || {};
             const lastDomain = sessionState.lastDomain || null;
             const lastTimestamp = sessionState.lastTimestamp || now;
             const elapsedSeconds = Math.floor((now - lastTimestamp) / 1000);
 
-            addElapsedTimeToStorage(lastDomain, elapsedSeconds, () => {
-                saveSessionState({
-                    lastDomain: currentDomain,
-                    lastTimestamp: now
+            if (!allowed) {
+                addElapsedTimeToStorage(lastDomain, elapsedSeconds, () => {
+                    saveSessionState({
+                        lastDomain: null,
+                        lastTimestamp: now
+                    });
+                });
+                return;
+            }
+
+            getCurrentActiveDomain((currentDomain) => {
+                addElapsedTimeToStorage(lastDomain, elapsedSeconds, () => {
+                    saveSessionState({
+                        lastDomain: currentDomain,
+                        lastTimestamp: now
+                    });
                 });
             });
         });
