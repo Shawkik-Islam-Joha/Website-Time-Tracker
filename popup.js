@@ -9,6 +9,11 @@ function formatTime(seconds) {
     return `${hrs}h ${mins}m ${secs}s`;
 }
 
+function formatHours(seconds) {
+    const hours = seconds / 3600;
+    return `${hours.toFixed(1)}h`;
+}
+
 function formatShortDate(dateKey) {
     const [year, month, day] = dateKey.split("-").map(Number);
     const date = new Date(year, month - 1, day);
@@ -59,7 +64,7 @@ function getDefaultFaviconUrl(domain) {
     return `https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(domain)}`;
 }
 
-function drawUsageChart(canvas, statsByDate, dates) {
+function drawUsageChart(canvas, statsByDate, dates, hoveredBarIndex = -1) {
     const context = canvas.getContext("2d");
     const width = canvas.width;
     const height = canvas.height;
@@ -68,23 +73,82 @@ function drawUsageChart(canvas, statsByDate, dates) {
 
     const totals = dates.map((date) => getDailyTotal(statsByDate[date]));
     const maxValue = Math.max(...totals, 1);
-    const padding = 18;
-    const chartHeight = height - padding * 2 - 14;
-    const barWidth = (width - padding * 2) / dates.length - 6;
+    const yAxisSteps = 4;
+    const roundedMaxHours = Math.max(1, Math.ceil(maxValue / 3600));
+    const maxSecondsForAxis = roundedMaxHours * 3600;
+
+    const leftPadding = 50;
+    const rightPadding = 12;
+    const topPadding = 20;
+    const bottomPadding = 32;
+    const chartHeight = height - topPadding - bottomPadding;
+    const chartWidth = width - leftPadding - rightPadding;
+    const barGap = 6;
+    const barWidth = Math.max(8, chartWidth / dates.length - barGap);
+
+    context.strokeStyle = "#d0cfe0";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(leftPadding, topPadding);
+    context.lineTo(leftPadding, height - bottomPadding);
+    context.lineTo(width - rightPadding, height - bottomPadding);
+    context.stroke();
+
+    context.fillStyle = "#625b71";
+    context.font = "10px Segoe UI";
+    context.textAlign = "right";
+
+    for (let step = 0; step <= yAxisSteps; step += 1) {
+        const y = topPadding + (step / yAxisSteps) * chartHeight;
+        const stepValueInHours = roundedMaxHours * ((yAxisSteps - step) / yAxisSteps);
+
+        context.strokeStyle = "#ebe7f9";
+        context.beginPath();
+        context.moveTo(leftPadding, y);
+        context.lineTo(width - rightPadding, y);
+        context.stroke();
+
+        context.fillText(`${stepValueInHours.toFixed(1)}h`, leftPadding - 6, y + 3);
+    }
+
+    context.save();
+    context.translate(14, height / 2);
+    context.rotate(-Math.PI / 2);
+    context.fillStyle = "#625b71";
+    context.font = "10px Segoe UI";
+    context.textAlign = "center";
+    context.fillText("Time Duration (Hours)", 0, 0);
+    context.restore();
 
     totals.forEach((value, index) => {
-        const barHeight = Math.round((value / maxValue) * chartHeight);
-        const x = padding + index * (barWidth + 6);
-        const y = height - padding - barHeight - 10;
+        const barHeight = Math.round((value / maxSecondsForAxis) * chartHeight);
+        const x = leftPadding + index * (barWidth + barGap);
+        const y = height - bottomPadding - barHeight;
 
-        context.fillStyle = "#6750a4";
+        context.fillStyle = index === hoveredBarIndex ? "#4d3b87" : "#6750a4";
         context.fillRect(x, y, barWidth, barHeight);
 
         context.fillStyle = "#625b71";
         context.font = "10px Segoe UI";
         context.textAlign = "center";
-        context.fillText(formatShortDate(dates[index]).replace(" ", "/"), x + barWidth / 2, height - 4);
+        context.fillText(formatShortDate(dates[index]).replace(" ", "/"), x + barWidth / 2, height - 12);
     });
+
+    return {
+        bars: totals.map((value, index) => {
+            const barHeight = Math.round((value / maxSecondsForAxis) * chartHeight);
+            const x = leftPadding + index * (barWidth + barGap);
+            const y = height - bottomPadding - barHeight;
+            return {
+                index,
+                x,
+                y,
+                width: barWidth,
+                height: barHeight,
+                total: value
+            };
+        })
+    };
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -103,6 +167,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const prevDayButton = document.getElementById("prevDay");
     const nextDayButton = document.getElementById("nextDay");
     const usageChart = document.getElementById("usageChart");
+    const chartHoverTotal = document.getElementById("chartHoverTotal");
 
     const showStatsButton = document.getElementById("showStats");
     const toDailyFromStats = document.getElementById("toDailyFromStats");
@@ -115,6 +180,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let liveData = {};
     let faviconCache = {};
     let refreshIntervalId = null;
+    let hoveredBarIndex = -1;
+    let chartBars = [];
 
     function showView(viewName) {
         dailyView.classList.toggle("hidden", viewName !== "daily");
@@ -126,7 +193,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (viewName === "chart") {
-            drawUsageChart(usageChart, liveData, recentDates);
+            const chartData = drawUsageChart(usageChart, liveData, recentDates, hoveredBarIndex);
+            chartBars = chartData.bars;
         }
     }
 
@@ -271,12 +339,50 @@ document.addEventListener("DOMContentLoaded", () => {
                         renderHistoryDay();
                     }
                     if (!chartView.classList.contains("hidden")) {
-                        drawUsageChart(usageChart, liveData, recentDates);
+                        const chartData = drawUsageChart(usageChart, liveData, recentDates, hoveredBarIndex);
+                        chartBars = chartData.bars;
                     }
                 });
             });
         });
     }
+
+    usageChart.addEventListener("mousemove", (event) => {
+        const rect = usageChart.getBoundingClientRect();
+        const scaleX = usageChart.width / rect.width;
+        const scaleY = usageChart.height / rect.height;
+        const mouseX = (event.clientX - rect.left) * scaleX;
+        const mouseY = (event.clientY - rect.top) * scaleY;
+
+        const hoveredBar = chartBars.find((bar) => {
+            if (bar.height === 0) {
+                return false;
+            }
+
+            return mouseX >= bar.x && mouseX <= bar.x + bar.width && mouseY >= bar.y && mouseY <= bar.y + bar.height;
+        });
+
+        const nextHoverIndex = hoveredBar ? hoveredBar.index : -1;
+
+        if (nextHoverIndex !== hoveredBarIndex) {
+            hoveredBarIndex = nextHoverIndex;
+            const chartData = drawUsageChart(usageChart, liveData, recentDates, hoveredBarIndex);
+            chartBars = chartData.bars;
+        }
+
+        if (hoveredBar) {
+            chartHoverTotal.textContent = `${recentDates[hoveredBar.index]}: ${formatTime(hoveredBar.total)} (${formatHours(hoveredBar.total)})`;
+        } else {
+            chartHoverTotal.textContent = "Hover a bar to see the day's total usage.";
+        }
+    });
+
+    usageChart.addEventListener("mouseleave", () => {
+        hoveredBarIndex = -1;
+        const chartData = drawUsageChart(usageChart, liveData, recentDates, hoveredBarIndex);
+        chartBars = chartData.bars;
+        chartHoverTotal.textContent = "Hover a bar to see the day's total usage.";
+    });
 
     showStatsButton.addEventListener("click", () => {
         showView("stats");
