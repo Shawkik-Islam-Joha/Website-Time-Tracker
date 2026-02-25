@@ -1,3 +1,5 @@
+const SESSION_STATE_KEY = "__sessionState";
+
 function formatTime(seconds) {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
@@ -27,6 +29,27 @@ function getRecentDates(limit = 7) {
 
 function getDailyTotal(dayData) {
     return Object.values(dayData || {}).reduce((sum, seconds) => sum + seconds, 0);
+}
+
+function cloneStorageData(storageData) {
+    return Object.fromEntries(
+        Object.entries(storageData).map(([date, dayData]) => [date, { ...(dayData || {}) }])
+    );
+}
+
+function getTrackableDomain(url) {
+    try {
+        const urlObject = new URL(url);
+        const isWebPage = urlObject.protocol === "http:" || urlObject.protocol === "https:";
+
+        if (!isWebPage || !urlObject.hostname) {
+            return null;
+        }
+
+        return urlObject.hostname;
+    } catch (e) {
+        return null;
+    }
 }
 
 function drawUsageChart(canvas, statsByDate, dates) {
@@ -74,9 +97,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let currentDateIndex = recentDates.length - 1;
     let storageData = {};
+    let liveData = {};
+    let refreshIntervalId = null;
 
     function renderTodayUsage() {
-        const data = storageData[today] || {};
+        const data = liveData[today] || {};
         const total = getDailyTotal(data);
 
         totalTimeDiv.textContent = `Total Today: ${formatTime(total)}`;
@@ -103,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderHistoryDay() {
         const selectedDate = recentDates[currentDateIndex];
-        const dayData = storageData[selectedDate] || {};
+        const dayData = liveData[selectedDate] || {};
         const total = getDailyTotal(dayData);
 
         historyDateLabel.textContent = selectedDate;
@@ -130,7 +155,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderStatistics() {
         renderHistoryDay();
-        drawUsageChart(usageChart, storageData, recentDates);
+        drawUsageChart(usageChart, liveData, recentDates);
+    }
+
+    function renderAll() {
+        renderTodayUsage();
+        if (!statsSection.classList.contains("hidden")) {
+            renderStatistics();
+        }
+    }
+
+    function applyLiveSessionTime(callback = () => {}) {
+        chrome.storage.local.get([SESSION_STATE_KEY], (result) => {
+            const sessionState = result[SESSION_STATE_KEY] || {};
+            const lastTimestamp = sessionState.lastTimestamp;
+
+            liveData = cloneStorageData(storageData);
+
+            if (!lastTimestamp) {
+                callback();
+                return;
+            }
+
+            chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                const activeTab = tabs && tabs[0];
+                const activeDomain = activeTab && activeTab.url ? getTrackableDomain(activeTab.url) : null;
+
+                if (!activeDomain || activeDomain !== sessionState.lastDomain) {
+                    callback();
+                    return;
+                }
+
+                const elapsedSeconds = Math.floor((Date.now() - lastTimestamp) / 1000);
+
+                if (elapsedSeconds <= 0) {
+                    callback();
+                    return;
+                }
+
+                liveData[today] = liveData[today] || {};
+                liveData[today][activeDomain] = (liveData[today][activeDomain] || 0) + elapsedSeconds;
+                callback();
+            });
+        });
+    }
+
+    function refreshLiveView() {
+        chrome.storage.local.get(null, (data) => {
+            storageData = data || {};
+            applyLiveSessionTime(renderAll);
+        });
     }
 
     statsToggle.addEventListener("click", () => {
@@ -158,8 +232,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    chrome.storage.local.get(null, (data) => {
-        storageData = data || {};
-        renderTodayUsage();
+    refreshLiveView();
+    refreshIntervalId = setInterval(refreshLiveView, 1000);
+
+    window.addEventListener("unload", () => {
+        if (refreshIntervalId) {
+            clearInterval(refreshIntervalId);
+        }
     });
 });
