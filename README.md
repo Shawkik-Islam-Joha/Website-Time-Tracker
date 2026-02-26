@@ -54,15 +54,6 @@ Website-Time-Tracker/
 
 ---
 
-## 🧠 How It Works
-
-- Uses the `chrome.tabs` API to detect active tabs
-- Uses `chrome.storage.local` to store time data
-- Background script continuously tracks active website
-- Popup reads stored data and displays daily statistics
-
----
-
 ## 📷 Screenshots
 
 ### Main View
